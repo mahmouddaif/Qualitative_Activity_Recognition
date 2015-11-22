@@ -2,7 +2,9 @@
 title: "Qualitative Activity Recognition"
 author: "Mahmoud Daif"
 date: "November 22, 2015"
-output: html_document
+output: 
+  html_document: 
+    keep_md: yes
 ---
 
 # Overview
