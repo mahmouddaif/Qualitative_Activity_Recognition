@@ -1,0 +1,11 @@
+base
+spam
+maps
+fields
+lattice
+ggplot2
+caret
+randomForest
+foreach
+iterators
+doParallel

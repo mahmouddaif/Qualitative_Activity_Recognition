@@ -1,0 +1,121 @@
+---
+title: "Qualitative Activity Recognition"
+author: "Mahmoud Daif"
+date: "November 22, 2015"
+output: html_document
+---
+
+# Overview
+The approach we propose for the Weight Lifting Exercises dataset is to investigate "how (well)" an activity was performed.
+Six young health participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E)
+Our goal is to be able to predict the class given measurements.
+
+# Reading data
+```{r echo=FALSE, message=FALSE,warning=FALSE}
+library(fields)
+library(caret)
+library(randomForest)
+library(doParallel)
+setwd("E:/Courses/Practical Machine Learning/Project")
+```
+
+```{r echo=TRUE, cache=TRUE}
+trainData <- read.csv("data/training/pml-training.csv",na.strings=c("NA","NaN", " ",""))
+testData <- read.csv("Data/test/pml-testing.csv",na.strings=c("NA","NaN", " ",""))
+
+```
+
+#Removing Columns With Mjority Missing Values
+1- Setting the max number of missing values threshold to be more than half of number of rows
+```{r echo=TRUE}
+numberOfRows <- nrow(trainData)
+
+naThreshold <- numberOfRows/2
+```
+
+2- Removing rows with majority of missing values
+```{r echo=TRUE}
+rowsToMentain <- names(trainData[colSums(is.na(trainData)) < naThreshold])
+rowsToMentainTest <- rowsToMentain[rowsToMentain != "classe"]
+
+trainData <- trainData[,rowsToMentain]
+
+testData <- testData[,rowsToMentainTest]
+
+```
+
+3- Setting seed for reproducible results
+```{r echo=TRUE}
+set.seed(32323)
+```
+
+4- Removing unnecessary variables like id, name and timestamp related variables
+
+```{r echo=TRUE}
+colsR <- c("X","user_name","raw_timestamp_part_1","raw_timestamp_part_2", "cvtd_timestamp")
+inR <- match(colsR, colnames(trainData))
+trainData <- trainData[,-inR]
+
+```
+
+5- removing variables with near zero variance
+```{r echo=TRUE}
+nzv <- nearZeroVar(trainData)
+
+trainData <- trainData[,-nzv]
+```
+
+6- Shuffling training data
+```{r echo = TRUE}
+trainData <- trainData[sample(nrow(trainData)),]
+
+```
+
+7- Splitting training data to 80 % and 20% to calculate confusion matrix and be able to test our model
+```{r echo=TRUE}
+inTrain <- createDataPartition(y=trainData$classe, p = 0.8, list = FALSE)
+
+training <- trainData[inTrain,]
+testing <- trainData[-inTrain,]
+
+```
+
+8- training model using random forest and repeated random sub sampling validation
+
+```{r echo=TRUE, cache=TRUE}
+control <- trainControl(method="repeatedcv", number=10, repeats=3, allowParallel = TRUE)
+cl <- makeCluster(detectCores())
+registerDoParallel(cl)
+
+modFit <- train(classe ~ ., method="rf", data = training, trControl = control )
+stopCluster(cl)
+```
+
+9- Summary of final model
+```{r echo=TRUE}
+print(modFit$finalModel)
+
+```
+
+#In-sample and Out-Sample Errors
+1- In-Sample and Out-Sample error
+The we will use accuracy from the confusion matrix to express in sample and out of sample errors.
+The in sample accuracy is expected to be higher than the out sample accuracy.
+This is because the model is always a little fine tuned (overfitted) to the training data
+
+In sample
+```{r echo=TRUE}
+confusionMatrix(training$classe, predict(modFit,training))
+```
+
+Outsample
+```{r echo=TRUE}
+confusionMatrix(testing$classe, predict(modFit,testing))
+```
+
+#Test Data Prediction
+
+```{r echo=TRUE}
+testClasses <- predict(modFit,testData)
+testClasses
+```
